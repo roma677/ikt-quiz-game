@@ -19,7 +19,7 @@ function pin(){ let p; do { p=String(crypto.randomInt(100000,1000000)); } while(
 function publicPlayers(r){ return [...r.players.values()].map(p=>({id:p.id,name:p.name,team:p.team,score:p.score,answered:p.answered})); }
 function standings(r){
  const players=publicPlayers(r).sort((a,b)=>b.score-a.score);
- const teams=r.teams.map((t,i)=>({...t,score:r.playersList.filter(p=>p.team===i).reduce((s,p)=>s+p.score,0),members:r.playersList.filter(p=>p.team===i).length})).sort((a,b)=>b.score-a.score);
+ const teams=r.teams.map((t,i)=>{const members=r.playersList.filter(p=>p.team===i);const score=members.reduce((s,p)=>s+p.score,0);const maxScore=members.length*r.questions.length*1000;return {...t,score,members:members.length,maxScore,grade:maxScore?Math.round(score/maxScore*1000)/10:null};}).sort((a,b)=>(b.grade??-1)-(a.grade??-1)||b.score-a.score);
  return {players,teams};
 }
 function roomState(r){return {pin:r.pin,status:r.status,players:publicPlayers(r),teams:r.teams,questionIndex:r.index,total:r.questions.length,answered:[...r.players.values()].filter(p=>p.answered).length};}
@@ -97,7 +97,7 @@ io.on("connection",socket=>{
  });
  socket.on("disconnect",()=>{
    const code=socket.data.room,r=rooms.get(code);if(!r)return;
-   if(socket.data.role==="player"&&r.players.has(socket.id)){r.players.delete(socket.id);r.playersList=[...r.players.values()];emitRoom(r);}
+   if(socket.data.role==="player"&&r.players.has(socket.id)){r.players.delete(socket.id);if(r.status==="lobby")r.playersList=[...r.players.values()];emitRoom(r);}
    if(r.hostId===socket.id){stopTimer(r);io.to(code).emit("roomClosed");rooms.delete(code);}
  });
 });
